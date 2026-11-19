@@ -1,0 +1,49 @@
+# 一键编译 Aseprite（Windows x64）并产出可下载的 exe
+# 用法：放在 fork 里的 .github/workflows/build-windows.yml
+name: build-windows
+
+on:
+  workflow_dispatch:          # 支持手动 Run workflow
+  push:
+    paths:
+      - '.github/workflows/build-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout (含所有子模块)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: 安装 Ninja
+        uses: aseprite/get-ninja@main
+
+      - name: 配置 MSVC x64 环境
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+
+      # build.sh --auto 会自动下载匹配版本的 Skia、用 CMake+Ninja 编译，
+      # 产物固定在 build/bin/aseprite.exe
+      - name: 编译 Aseprite
+        shell: bash
+        run: bash build.sh --auto --norun
+
+      - name: 检查产物
+        shell: bash
+        run: |
+          ls -la build/bin/
+          if [ ! -f build/bin/aseprite.exe ]; then echo "没有生成 aseprite.exe"; exit 1; fi
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: aseprite-windows-x64
+          path: build/bin/aseprite.exe
+          if-no-files-found: error
